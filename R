@@ -1,0 +1,88 @@
+library(readxl)
+inc <- read_excel("C:/Users/hoang/Downloads/inc.xlsx")
+View(inc)
+library(plm)
+library(stargazer)
+library(lmtest)
+library(sandwich)
+library(jtools) 
+#Create a data frame for inc
+inc <-data.frame(inc)
+#Fit Model_1 
+model_1 <- lm(dem_ind ~ log_gdppc, data = inc)
+#get the standard errors clustered at state level for country
+summ(model_1, robust = TRUE, robust.type = "HC1", cluster = "country", digits = 7)
+
+inc$country <-as.factor(inc$country)
+inc$year <-as.factor(inc$year)
+# Fit Model_2
+model_2 <- plm(dem_ind ~ log_gdppc, 
+               data = inc,
+               index = c("country", "year"), 
+               model = "within",      
+               effect = "twoways")
+
+# Report the robust standard error
+coeftest(model_2, vcov = vcovHC, type = "HC1")
+
+# Exclude data for Azerbaijan and Andorra
+inc_subset <- subset(inc, country != "Azerbaijan" & country != "Andorra")
+# Fit Model_3
+model_3 <- plm(dem_ind~ log_gdppc, 
+               data = inc_subset,
+               index = c("country", "year"), 
+               model = "within",      
+               effect = "twoways")
+
+# Report the robust standard error
+coeftest(model_2, vcov = vcovHC, type = "HC1")
+#d) 
+library(stargazer)
+#estimate the 3 model 
+model_1 <- lm(dem_ind ~ log_gdppc, data = inc)
+model_2 <- plm(dem_ind ~ log_gdppc, 
+               data = inc,
+               index = c("country", "year"), 
+               model = "within",      
+               effect = "twoways")
+model_3 <- plm(dem_ind~ log_gdppc, 
+               data = inc_subset,
+               index = c("country", "year"), 
+               model = "within",      
+               effect = "twoways")
+
+# gather clustered standard errors in a list
+rob_see <- list(sqrt(diag(vcovHC(model_1, type = "HC1"))),
+                sqrt(diag(vcovHC(model_2, type = "HC1"))),
+                sqrt(diag(vcovHC(model_3, type = "HC1"))))
+# generate the table (html format)
+# Regression models: in html format
+
+stargazer(model_1, model_2,model_3, 
+          type="html",
+          digits = 3,
+          se = rob_se,
+          title = "The Effects of Income on Democracy",
+          out="models.htm")               
+# generate another table with correct R2 and adj R2
+####################################################
+# estimate all seven models using plm().
+model_1 <- lm(dem_ind ~ log_gdppc, data = inc)
+model_2 <- plm(dem_ind ~ log_gdppc, 
+               data = inc,
+               index = c("country", "year"), 
+               model = "pool",      
+               effect = "twoways")
+model_3 <- plm(dem_ind~ log_gdppc, 
+               data = inc_subset,
+               index = c("country", "year"), 
+               model = "pool",      
+               effect = "twoways")
+
+stargazer(model_1,model_2, model_3, 
+          type="html",
+          digits = 3,
+          se = rob_se,
+          title = "The Effects of Income on Democracy",
+          out="models_r2.htm") 
+               
